@@ -1,4 +1,3 @@
-#library( data.table )
 library( plyr )
 
 workingDirectory <- 'work'
@@ -11,7 +10,6 @@ activityLabelsFile <-
   paste( c( datasetDirectory, '/activity_labels.txt' ), collapse='' )
 
 # Set up files and directories
-
 if( !file.exists( workingDirectory ) ) {
   dir.create( workingDirectory )
 }
@@ -31,41 +29,58 @@ activityLabels <-
   read.table( activityLabelsFile, strip.white=TRUE,
               col.names=c( 'activity_id', 'activity_name' ), header=FALSE )
 
-# Read test data
-testSubjects <-
-  read.table( paste( c( datasetDirectory, '/test/subject_test.txt' ),
-                     collapse='' ),
+readSubjects <- function( subjectFile )
+{
+  read.table( paste( c( datasetDirectory, subjectFile ), collapse='' ),
               col.names='subject_id', header=FALSE, row.names=NULL )
-testMeasurements <-
-  read.table( paste( c( datasetDirectory, '/test/X_test.txt' ),
+}
+readMeasurements <- function( measurementsFile )
+{
+  read.table( paste( c( datasetDirectory, measurementsFile ),
                      collapse='' ),
               strip.white=TRUE, col.names=features$feature_name,
               header=FALSE, row.names=NULL, check.names=TRUE )
-testActivities <-
-  read.table( paste( c( datasetDirectory, '/test/y_test.txt' ),
-                     collapse='' ), strip.white=TRUE,
-              col.names='activity_id', header=FALSE,
-              row.names=NULL )
-testActivityFactors <-
-  factor( testActivities$activity_id, labels=activityLabels$activity_name )
+}
+readActivityFactors <- function( activitiesFile )
+{
+  activities <-
+    read.table( paste( c( datasetDirectory, activitiesFile ), collapse='' ),
+                strip.white=TRUE, col.names='activity_id', header=FALSE,
+                row.names=NULL ) 
+  as.vector( factor( activities$activity_id,
+                     labels=activityLabels$activity_name ) )
+}
+# Read test data
+testSubjects <- readSubjects( '/test/subject_test.txt' )
+testMeasurements <- readMeasurements( '/test/X_test.txt' )
+testActivityFactors <- readActivityFactors( '/test/y_test.txt' )
 
-# TODO READ training data
+# Read training data
+trainingSubjects <- readSubjects( '/train/subject_train.txt' )
+trainingMeasurements <- readMeasurements( '/train/X_train.txt' )
+trainingActivityFactors <- readActivityFactors( '/train/y_train.txt' )
 
-# TODO concatenate data frames (Instruction 1)
+# Merge the training and test sets to create one data set ( Instruction 1 )
+allSubjects <- rbind( testSubjects, trainingSubjects )
+allMeasurements <- rbind( testMeasurements, trainingMeasurements )
+allActivityFactors <- c( testActivityFactors, trainingActivityFactors )
 
 # Extract only the measurements on the mean and standard deviation for each
-# measurement (Instruction 2)
+# measurement ( Instruction 2 )
 relevantFeatures <-
   sort( c( grep( 'mean', features$feature_name, ignore.case=TRUE ),
            grep( 'std', features$feature_name, ignore.case=TRUE ) ) )
 measurements <-
-  cbind( testSubjects,
+  cbind( allSubjects,
+         # Use descriptive activity names to name the activities in the
+         # data set.
          # Appropriately label the data set with descriptive activity names
-         # (Instruction 4)
-         data.frame( activityName=as.vector( testActivityFactors ) ),
-         testMeasurements[ , relevantFeatures ] )
+         # ( Instructions 3 and 4 )
+         data.frame( activity=allActivityFactors ),
+         allMeasurements[ , relevantFeatures ] )
 
-# Aggregate values (Instruction 5)
+# Create a second, independent tidy data set with the average of each
+# variable for each activity and each subject ( Instruction 5 )
 aggregate <- function( dataframe )
 {
   averageFeature <- function( column )
@@ -78,7 +93,7 @@ labelAggregation <- function( unaggregatedLabel )
 {
   paste( c( 'avg', unaggregatedLabel ), collapse='_' )
 }
-tidy <- ddply( measurements, c( 'subject_id', 'activityName' ), aggregate )
+tidy <- ddply( measurements, c( 'subject_id', 'activity' ), aggregate )
 unaggregatedFeatureNames <-
   as.vector( features[ relevantFeatures, 'feature_name' ] )
 colnames( tidy ) <-
