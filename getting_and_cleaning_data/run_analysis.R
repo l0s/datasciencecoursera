@@ -1,3 +1,6 @@
+#library( data.table )
+library( plyr )
+
 workingDirectory <- 'work'
 zipFile <- paste( c( workingDirectory, '/data.zip' ), collapse='' )
 dataFileUrl <- 'https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip'
@@ -48,11 +51,36 @@ testActivityFactors <-
 
 # TODO READ training data
 
-# TODO concatenate data frames
+# TODO concatenate data frames (Instruction 1)
+
+# Extract only the measurements on the mean and standard deviation for each
+# measurement (Instruction 2)
 relevantFeatures <-
   sort( c( grep( 'mean', features$feature_name, ignore.case=TRUE ),
            grep( 'std', features$feature_name, ignore.case=TRUE ) ) )
 measurements <-
   cbind( testSubjects,
+         # Appropriately label the data set with descriptive activity names
+         # (Instruction 4)
          data.frame( activityName=as.vector( testActivityFactors ) ),
          testMeasurements[ , relevantFeatures ] )
+
+# Aggregate values (Instruction 5)
+aggregate <- function( dataframe )
+{
+  averageFeature <- function( column )
+  {
+    mean( dataframe[ , column ] )
+  }
+  sapply( 3:dim( dataframe )[ 2 ], averageFeature )
+}
+labelAggregation <- function( unaggregatedLabel )
+{
+  paste( c( 'avg', unaggregatedLabel ), collapse='_' )
+}
+tidy <- ddply( measurements, c( 'subject_id', 'activityName' ), aggregate )
+unaggregatedFeatureNames <-
+  as.vector( features[ relevantFeatures, 'feature_name' ] )
+colnames( tidy ) <-
+  c( 'subject', 'activity',
+     unlist( lapply( unaggregatedFeatureNames, labelAggregation ) ) )
