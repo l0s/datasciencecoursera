@@ -1,6 +1,7 @@
 library( plyr )
 
 workingDirectory <- 'work'
+outFile <- paste( c( workingDirectory, '/tidy.txt' ), collapse='' )
 zipFile <- paste( c( workingDirectory, '/data.zip' ), collapse='' )
 dataFileUrl <- 'https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip'
 datasetDirectory <-
@@ -99,3 +100,5 @@ unaggregatedFeatureNames <-
 colnames( tidy ) <-
   c( 'subject', 'activity',
      unlist( lapply( unaggregatedFeatureNames, labelAggregation ) ) )
+
+write.table( tidy, file=outFile, row.names=FALSE, fileEncoding='UTF-8' )
